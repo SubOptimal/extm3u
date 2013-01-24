@@ -33,7 +33,7 @@ sub init();
 ############################################################################
 # Main
 
-getopts('rl:',\%OPT);
+getopts('rl:p:',\%OPT);
 
 if (@ARGV == 0){
   help();
@@ -41,12 +41,18 @@ if (@ARGV == 0){
 }
 
 my $lineend="\n";
+my $filesep="/";
 init();
 
 print ("#EXTM3U${lineend}"); # print the extended header
 my @all;
 while(my $mp3root = shift(@ARGV)) {
-    $mp3root =~ s/\/$//; #remove trailing slash
+    # remove trailing slashes
+    if ("$^O" eq "MSWin32") {
+        $mp3root =~ s/\\*$//;
+    } else {    
+        $mp3root =~ s/\/*$//;
+    }
 
     # gather or print the files
     push(@all, readFiles($mp3root,$OPT{'r'}));
@@ -70,12 +76,15 @@ sub help() {
 
 print STDERR <<STOP
 
-      Usage: extm3u.pl [-r] [-l LF|CRLF] <music-dir[s]>
+      Usage: extm3u.pl [-r] [-l LF|CRLF] [-p DOS|UNIX] <music-dir[s]>
 
       -r           Randomize playlist order (heavy memory use)
       -l           Defines the lineend character(s) to be used
          LF        use linefeed as lineend character (default)
          CRLF      use carriage return + linefeed as lineend characters
+      -p           Defines the file separator to be used in the paths
+         UNIX      use a slash "/" as file separator (default)
+         DOS       use a backslash "\\" as file separator
       <music-dir>  Search this directory recursivly for audio files
 
       This tool generates a extended .m3u playlist from a given directory
@@ -175,6 +184,9 @@ sub printFile($$$$){
     }else{
         print ("#EXTINF:$sec,$base${lineend}");
     }
+    if ("$filesep" eq "\\") {
+        $file =~ s/\//\\/;
+    }
     print ("$file${lineend}");
 }
 
@@ -250,6 +262,17 @@ sub init() {
         # use the default LF
         } else {
         print STDERR "parameter '${opt_parm}' is unknown for option -l ${lineend}";
+            exit -1;
+        }
+    }
+    if ($OPT{p}) {
+        my $opt_parm=uc($OPT{p});
+        if ($opt_parm eq 'DOS') {
+            $filesep="\\";
+        } elsif ($opt_parm eq 'UNIX') {
+            # use the default '/'
+        } else {
+            print STDERR "parameter '${opt_parm}' is unknown for option -p ${filesep}";
             exit -1;
         }
     }
